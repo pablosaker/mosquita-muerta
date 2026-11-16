@@ -13,32 +13,32 @@
   <g transform="translate(0 132)">
     <rect x="22" y="0" width="356" height="50" fill="#e8a317"/>
     <text x="40" y="37" class="t" font-size="34" fill="#141414">1</text>
-    <text x="78" y="33" class="m" font-size="21" fill="#141414">BOT</text>
-    <text x="362" y="33" class="m" font-size="21" fill="#141414" text-anchor="end">20.846</text>
+    <text x="78" y="33" class="m" font-size="21" fill="#141414">BOTE</text>
+    <text x="362" y="33" class="m" font-size="21" fill="#141414" text-anchor="end">18.617</text>
   </g>
   <g transform="translate(0 190)">
     <line x1="22" y1="54" x2="378" y2="54" stroke="#f3eee2" stroke-opacity=".15" stroke-width="2"/>
     <text x="40" y="37" class="t" font-size="34" fill="#e8a317">2</text>
-    <text x="78" y="33" class="m" font-size="19" fill="#f3eee2">PABLO SAKER</text>
-    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">13.730</text>
+    <text x="78" y="33" class="m" font-size="19" fill="#f3eee2">SANTI EL PRO</text>
+    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">16.671</text>
   </g>
   <g transform="translate(0 248)">
     <line x1="22" y1="54" x2="378" y2="54" stroke="#f3eee2" stroke-opacity=".15" stroke-width="2"/>
     <text x="40" y="37" class="t" font-size="34" fill="#e8a317">3</text>
-    <text x="78" y="33" class="m" font-size="21" fill="#f3eee2">ORREGO</text>
-    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">12.570</text>
+    <text x="78" y="33" class="m" font-size="21" fill="#f3eee2">BOTE</text>
+    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">14.140</text>
   </g>
   <g transform="translate(0 306)">
     <line x1="22" y1="54" x2="378" y2="54" stroke="#f3eee2" stroke-opacity=".15" stroke-width="2"/>
     <text x="40" y="37" class="t" font-size="34" fill="#e8a317">4</text>
-    <text x="78" y="33" class="m" font-size="21" fill="#f3eee2">NATALIA</text>
-    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">12.404</text>
+    <text x="78" y="33" class="m" font-size="21" fill="#f3eee2">HERNAN</text>
+    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">12.719</text>
   </g>
   <g transform="translate(0 364)">
     <line x1="22" y1="54" x2="378" y2="54" stroke="#f3eee2" stroke-opacity=".15" stroke-width="2"/>
     <text x="40" y="37" class="t" font-size="34" fill="#e8a317">5</text>
-    <text x="78" y="33" class="m" font-size="21" fill="#f3eee2">NATALIA</text>
-    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">12.001</text>
+    <text x="78" y="33" class="m" font-size="21" fill="#f3eee2">ORREGO</text>
+    <text x="362" y="33" class="m" font-size="21" fill="#f3eee2" text-anchor="end">12.570</text>
   </g>
   <text x="195" y="440" class="m" font-size="12" fill="#f3eee2" fill-opacity=".55" text-anchor="middle" letter-spacing="1">PUNTOS · MOSQUITA MUERTA</text>
 </svg>
