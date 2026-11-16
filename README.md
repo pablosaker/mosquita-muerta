@@ -10,6 +10,7 @@ Juego cooperativo de la cervecería Bajo Cuerda (Pereira). Dos a cuatro moscas a
 ## Archivos
 - `index.html`: el juego completo (HTML + JavaScript, sin dependencias).
 - `mosca.png`: el isotipo usado en el juego.
+- `top5.svg`: el top 5 en imagen para el banner de la tienda. Lo regenera cada pocos minutos la Action `Top 5 para el banner` (`.github/workflows/top5.yml` + `scripts/top5.mjs`, con las fuentes de `fonts/`).
 
 ## Publicación
 Se publica con GitHub Pages desde la rama `main`. Cada cambio que se sube a `main` se publica solo en uno o dos minutos.
