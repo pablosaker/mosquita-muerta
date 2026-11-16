@@ -29,6 +29,17 @@
   #nm button{flex:1;font:700 15px "Space Mono",monospace;padding:12px 8px;border:3px solid #141414;cursor:pointer}
   #nm #nmok{background:#e8a317;color:#141414}
   #nm #nmno{background:#f3eee2;color:#141414}
+  #cs{display:none;position:fixed;inset:0;background:rgba(20,20,20,.86);align-items:center;justify-content:center;z-index:10;touch-action:auto}
+  #cs.on{display:flex}
+  #cs .bx{background:#f3eee2;border:4px solid #141414;padding:18px 20px;width:min(520px,90vw);max-height:92vh;overflow-y:auto;box-shadow:8px 8px 0 #e8a317;color:#141414;font:14px/1.45 "Space Mono",monospace}
+  #cs .t{font:24px "Archivo Black","Arial Black",sans-serif;margin-bottom:6px}
+  #cs p{margin:0 0 12px}
+  #cs label{display:flex;gap:10px;align-items:flex-start;margin:10px 0;font-weight:700;cursor:pointer}
+  #cs input{width:22px;height:22px;flex:0 0 auto;accent-color:#e8a317;margin-top:1px}
+  #cs a{color:#141414}
+  #cs button{width:100%;margin-top:12px;font:700 17px "Space Mono",monospace;padding:13px;border:3px solid #141414;background:#e8a317;color:#141414;cursor:pointer}
+  #cs button:disabled{background:#d8d2c4;color:#888;cursor:not-allowed}
+  #cs .no{margin-top:8px;font-size:12px;opacity:.7;min-height:1em}
   #lbBtn{display:none;position:fixed;left:12px;bottom:12px;z-index:7;font:700 15px "Space Mono",monospace;background:#e8a317;color:#141414;border:3px solid #141414;padding:10px 16px;cursor:pointer;box-shadow:4px 4px 0 #141414}
   #lbBtn.on{display:block}
   #lb{display:none;position:fixed;inset:0;background:rgba(20,20,20,.78);align-items:center;justify-content:center;z-index:9;touch-action:auto}
@@ -64,6 +75,14 @@
   <div class="sc" id="nmsc"></div>
   <input id="nmi" maxlength="12" placeholder="SU NOMBRE" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" enterkeyhint="done">
   <div class="rw"><button id="nmok" type="button">GUARDAR</button><button id="nmno" type="button">NO GUARDAR</button></div>
+</div></div>
+<div id="cs"><div class="bx">
+  <div class="t">ANTES DE JUGAR</div>
+  <p>Mosquita Muerta es un juego de <b>Bajo Cuerda</b>, una marca de cerveza: es solo para mayores de 18 años.</p>
+  <label><input type="checkbox" id="csAge"><span>Declaro que soy mayor de 18 años.</span></label>
+  <label><input type="checkbox" id="csData"><span>Autorizo a VIDA FRESCA S.A.S. (Bajo Cuerda) a tratar los datos que ingrese en el juego (nombre en el ranking) según su <a href="https://bajocuerda.net/politica-de-datos" target="_blank" rel="noopener">política de tratamiento de datos</a>.</span></label>
+  <button id="csOk" type="button" disabled>ENTRAR A JUGAR</button>
+  <div class="no" id="csNo"></div>
 </div></div>
 <div id="rot"><div class="ph"></div>GIRE EL CELULAR<small>SE JUEGA CON EL CELULAR ACOSTADO</small></div>
 <script>
@@ -145,6 +164,7 @@ const BLOCK = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Ente
 addEventListener('keydown', e => {
   if (nameOpen) { if (e.key === 'Enter') { e.preventDefault(); saveName(); } else if (e.key === 'Escape') saveName(true); return; }
   if (lbOpen) { if (e.key === 'Escape' || e.key === 'Enter') closeBoard(); e.preventDefault(); return; }
+  if (consentOpen) return;
   if (BLOCK.includes(e.code)) e.preventDefault();
   if (!e.repeat) hits.add(e.code);
   keys.add(e.code); initAudio();
@@ -253,7 +273,7 @@ function circRect(cx, cy, r, x, y, w, h) {
   const nx = clamp(cx, x, x + w), ny = clamp(cy, y, y + h);
   return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
 }
-let best = 0, top5 = [], nameOpen = false, pendingName = false, savedIdx = -1;
+let consentOpen = false, best = 0, top5 = [], nameOpen = false, pendingName = false, savedIdx = -1;
 try { top5 = JSON.parse(localStorage.getItem('mosquita_top5') || '[]'); if (!Array.isArray(top5)) top5 = []; } catch (e) { top5 = []; }
 try { best = Math.max(+localStorage.getItem('mosca_best') || 0, top5[0] ? top5[0].s : 0); } catch (e) {}
 /* ---------- top 5 global en Firestore (proyecto mosquita-muerta, aparte de la boletería) ----------
@@ -384,8 +404,7 @@ const SCENES = [
 const SK = () => SCENES[sceneIdx].k;
 let stageSlow = 0;
 function showStage(si) {
-  const night = Math.floor(dist / (SCENE_LEN * SCENES.length)) + 1;
-  banner = { txt: SCENES[si].n, sub: 'ETAPA ' + (si + 1) + ' DE ' + SCENES.length + (night > 1 ? ' · NOCHE ' + night : ''), hint: SCENES[si].hint, life: 3.2, max: 3.2 };
+  banner = { txt: SCENES[si].n, sub: si === SCENES.length - 1 ? 'ETAPA FINAL · HASTA QUE EL CUERPO AGUANTE' : 'ETAPA ' + (si + 1) + ' DE ' + SCENES.length, hint: SCENES[si].hint, life: 3.2, max: 3.2 };
   stageSlow = 3; // cámara lenta mientras se lee el aviso
   tone(523, .12, 'triangle', .07); setTimeout(() => tone(784, .2, 'triangle', .07), 120);
 }
@@ -449,7 +468,7 @@ function toTitle() { loadGlobal(); savedEntry = null; myRank = null; state = 'ti
 
 /* ---------- spawners ---------- */
 function livingFlies() { return players.filter(p => p.alive); }
-function laserEnd(o) { const ax = o.x, ay = o.top ? CEIL : FLOOR; return [ax, ay, ax + Math.cos(o.a) * 1500, ay + Math.sin(o.a) * 1500]; }
+function laserEnd(o) { const ax = o.x, ay = o.top ? CEIL : FLOOR, L = (FLOOR - CEIL) * .55; return [ax, ay, ax + Math.cos(o.a) * L, ay + Math.sin(o.a) * L]; }
 function bassCenter(o) { return [o.x, o.top ? CEIL + 55 : FLOOR - 55]; }
 function hitSpecial(p, o, pad) { // ¿la mosca toca este obstáculo de etapa?
   if (o.k === 'laser') { if (!o.on) return false; const [ax, ay, ex, ey] = laserEnd(o); return segDist(p.x, p.y, ax, ay, ex, ey) < 8 + pad; }
@@ -466,10 +485,10 @@ function spawnSpecial(k) {
   if (k === 'laser') obs.push({ k, x: W + 60, top: Math.random() < .55, tw: 0, ph: rand(0, 6), amp: rand(.3, .5), spd: rand(.55, .85), on: false, warnNow: false, a: 0 });
   else if (k === 'bass') obs.push({ k, x: W + 60, top: Math.random() < .3, cd: .5, rings: [], kick: 0 });
   else if (k === 'waiter') obs.push({ k, x: W + 60, tw: 0, ph: rand(0, 6), spd: rand(1.2, 1.8), y: (CEIL + FLOOR) / 2, food: [0, 1, 2].map(() => Math.random() < .5 ? 'taco' : 'burger') });
-  else if (k === 'smoke') obs.push({ k, x: W + 220, y: rand(CEIL + 90, FLOOR - 90), r: rand(150, 210), seed: rand(0, 100) });
+  else if (k === 'smoke') obs.push({ k, x: W + 320, y: rand(CEIL + 110, FLOOR - 110), r: rand(240, 320), seed: rand(0, 100) });
   else if (k === 'umb') obs.push({ k, x: W + 60, top: FLOOR - span * rand(.42, .62), r: rand(95, 125), open: 0, opening: false });
 }
-const STAGE_OBS = { pista: ['laser', 'bass'], parrilla: ['waiter', 'smoke', 'waiter'], aguacero: ['umb'], horaloca: ['laser', 'bass', 'waiter', 'umb'] };
+const STAGE_OBS = { pista: ['laser', 'bass', 'smoke'], parrilla: ['waiter', 'smoke', 'waiter'], aguacero: ['umb'], horaloca: ['laser', 'bass', 'waiter', 'umb', 'smoke'] };
 function spawnObs() {
   const special = STAGE_OBS[SK()];
   if (special && t > 2 && Math.random() < .5) {
@@ -579,7 +598,7 @@ function update(dt) {
 
   if (state === 'title') {
     scrollBg(90 * dt, 'llegada');
-    if (lbOpen) return;
+    if (lbOpen || consentOpen) return;
     for (const s of SOURCES) {
       if (inp[s].p && !players.some(p => p.src === s) && players.length < 4) {
         const p = newPlayer(s, players.length); players.push(p);
@@ -614,7 +633,7 @@ function update(dt) {
   speed = Math.min(620, 250 + t * 6) * (SK() === 'horaloca' ? 1.2 : 1);
   const dx = speed * wdt;
   dist += dx;
-  const si = Math.floor(dist / SCENE_LEN) % SCENES.length;
+  const si = Math.min(Math.floor(dist / SCENE_LEN), SCENES.length - 1); // la hora loca no termina
   if (si !== sceneIdx) { sceneIdx = si; showStage(si); }
   scrollBg(dx * .45, SCENES[sceneIdx].k);
 
@@ -1068,6 +1087,7 @@ function drawObs(o) {
     ctx.restore();
     ctx.globalAlpha = 1; ctx.fillStyle = INK; ctx.fillRect(ax - 16, o.top ? ay : ay - 18, 32, 18);
     ctx.fillStyle = '#ff2bd6'; ctx.beginPath(); ctx.arc(ax, ay, 5, 0, 6.29); ctx.fill();
+    if (o.on) { ctx.globalAlpha = .5; ctx.beginPath(); ctx.arc(ex, ey, 9, 0, 6.29); ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, 3.5, 0, 6.29); ctx.fill(); }
   } else if (o.k === 'bass') {
     const [cx, cy] = bassCenter(o), y0 = o.top ? CEIL : FLOOR - 110, k = 1 + o.kick * .08;
     for (const r of o.rings) { ctx.globalAlpha = .55 * (1 - r / 470); ctx.strokeStyle = '#7a4dff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.29); ctx.stroke(); }
@@ -1321,10 +1341,10 @@ function drawSmoke() {
   const fade = 1 - .55 * drunkK(); // borracha + humo sería ilegible: el humo baja
   for (const o of obs) {
     if (o.k !== 'smoke') continue;
-    for (let i = 0; i < 5; i++) {
-      const a = o.seed + i * 1.7, px = o.x + Math.cos(a + clock * .4) * o.r * .45, py = o.y + Math.sin(a * 1.3 + clock * .3) * o.r * .3, pr = o.r * (.55 + .12 * Math.sin(a + clock));
+    for (let i = 0; i < 8; i++) {
+      const a = o.seed + i * 1.7, px = o.x + Math.cos(a + clock * .4) * o.r * .5, py = o.y + Math.sin(a * 1.3 + clock * .3) * o.r * .35, pr = o.r * (.5 + .12 * Math.sin(a + clock));
       const g = ctx.createRadialGradient(px, py, pr * .1, px, py, pr);
-      g.addColorStop(0, 'rgba(120,115,110,' + (.75 * fade) + ')'); g.addColorStop(1, 'rgba(120,115,110,0)');
+      g.addColorStop(0, 'rgba(95,90,88,' + (.92 * fade) + ')'); g.addColorStop(.6, 'rgba(110,105,100,' + (.7 * fade) + ')'); g.addColorStop(1, 'rgba(120,115,110,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, pr, 0, 6.29); ctx.fill();
     }
   }
@@ -1400,7 +1420,7 @@ function render() {
   ctx.save(); ctx.globalAlpha = .5; ctx.drawImage(tex, 0, 0); ctx.restore();
   drawBg();
   drawStageFx();
-  ctx.fillStyle = 'rgba(246,240,228,.42)'; ctx.fillRect(0, CEIL, W, FLOOR - CEIL); // velo: el fondo queda en segundo plano
+  ctx.fillStyle = 'rgba(246,240,228,.6)'; ctx.fillRect(0, CEIL, W, FLOOR - CEIL); // velo: el fondo queda en segundo plano
   if (state !== 'title' && SK() === 'aguacero') drawRain();
   if (state === 'play' || state === 'over') {
     const dk = state === 'play' ? drunkK() : 0;
@@ -1440,7 +1460,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.2.1', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.3', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
@@ -1453,12 +1473,22 @@ function render() {
 
 let last = performance.now();
 let lbShown = false, blurNow = 0;
+/* consentimiento: la primera vez se pide mayoría de edad y autorización de datos (se recuerda en el dispositivo) */
+const csEl = document.getElementById('cs'), csAge = document.getElementById('csAge'), csData = document.getElementById('csData'), csOk = document.getElementById('csOk');
+function csUpdate() { csOk.disabled = !(csAge.checked && csData.checked); document.getElementById('csNo').textContent = csAge.checked ? '' : 'Si es menor de edad, este juego no es para usted.'; }
+csAge.addEventListener('change', csUpdate); csData.addEventListener('change', csUpdate);
+csOk.addEventListener('click', () => {
+  try { localStorage.setItem('mm_consent', JSON.stringify({ v: 1, age: true, data: true, t: new Date().toISOString() })); } catch (e) {}
+  consentOpen = false; csEl.classList.remove('on'); keys.clear(); hits.clear(); initAudio();
+});
+try { const c = JSON.parse(localStorage.getItem('mm_consent') || 'null'); if (!(c && c.v === 1 && c.age && c.data)) { consentOpen = true; } } catch (e) { consentOpen = true; }
+if (consentOpen) { csEl.classList.add('on'); csUpdate(); }
 function loop(now) {
   const dt = Math.min(.033, (now - last) / 1000); last = now;
   update(dt); render();
   const bl = state === 'play' ? Math.round(drunkK() * 4) / 2 : 0; // borroso = blur del canvas por CSS (barato)
   if (bl !== blurNow) { blurNow = bl; cv.style.filter = bl ? 'blur(' + (bl * .8 + .4) + 'px)' : ''; }
-  const want = (state === 'title' || (state === 'over' && overT > 1)) && !nameOpen && !lbOpen && !pendingName;
+  const want = (state === 'title' || (state === 'over' && overT > 1)) && !nameOpen && !lbOpen && !pendingName && !consentOpen;
   if (want !== lbShown) { lbShown = want; lbBtn.classList.toggle('on', want); }
   requestAnimationFrame(loop);
 }
