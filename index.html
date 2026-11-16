@@ -346,14 +346,14 @@ function spawnDrops() {
   // menos gotas, más espaciadas (en equipo los patrones piden estirar la cuerda)
   const r = Math.random(), x0 = W + 40, solo = players.length === 1;
   if (r < .45) { // fila ondulada corta
-    const n = 3 + Math.floor(Math.random() * 3), y0 = rand(CEIL + 90, FLOOR - 90), amp = rand(0, 50), ph = rand(0, 6);
-    for (let i = 0; i < n; i++) items.push({ k: 'drop', x: x0 + i * 60, y: y0 + Math.sin(ph + i * .7) * amp });
+    const n = 2 + Math.floor(Math.random() * 2), y0 = rand(CEIL + 90, FLOOR - 90), amp = rand(0, 50), ph = rand(0, 6);
+    for (let i = 0; i < n; i++) items.push({ k: 'drop', x: x0 + i * 70, y: y0 + Math.sin(ph + i * .7) * amp });
   } else if (r < .75) { // columna
     const yc = rand(CEIL + 130, FLOOR - 130), cols = solo ? 1 : 2;
-    for (let c = 0; c < cols; c++) for (let i = 0; i < 3; i++) items.push({ k: 'drop', x: x0 + c * 180, y: yc + (i - 1) * 46 });
+    for (let c = 0; c < cols; c++) for (let i = 0; i < 2; i++) items.push({ k: 'drop', x: x0 + c * 180, y: yc + (i - .5) * 60 });
   } else { // dos filas separadas: arriba o abajo, hay que escoger (en equipo, una mosca en cada una)
     const y1 = rand(CEIL + 70, (CEIL + FLOOR) / 2 - 70), y2 = y1 + rand(140, 200);
-    for (let i = 0; i < 3; i++) { items.push({ k: 'drop', x: x0 + i * 60, y: y1 }); items.push({ k: 'drop', x: x0 + i * 60, y: y2 }); }
+    for (let i = 0; i < 2; i++) { items.push({ k: 'drop', x: x0 + i * 70, y: y1 }); items.push({ k: 'drop', x: x0 + i * 70, y: y2 }); }
   }
 }
 
@@ -457,7 +457,7 @@ function update(dt) {
   nextObs -= dx;
   if (nextObs <= 0) { spawnObs(); nextObs = lerp(600, 330, clamp(t / 120, 0, 1)) * rand(.8, 1.3); }
   nextItem -= dx;
-  if (nextItem <= 0) { spawnDrops(); nextItem = rand(900, 1350); }
+  if (nextItem <= 0) { spawnDrops(); nextItem = rand(1250, 1800); }
   nextHop -= dx;
   if (nextHop <= 0) {
     const r = Math.random(), k = r < .4 ? 'hop' : r < .7 ? 'shades' : 'bottle';
@@ -582,7 +582,7 @@ function update(dt) {
 
   // la cuerda es la que recoge la cerveza (solo si las dos puntas están vivas)
   comboT -= dt; if (comboT <= 0) combo = 0;
-  mult = 1 + Math.min(4, Math.floor(combo / 6));
+  mult = 1 + Math.min(4, Math.floor(combo / 4));
   const ropes = links().filter(([a, b]) => a.alive && b.alive).map(([a, b]) => ropePts(a, b));
   hintT -= dt;
   for (const it of items) {
@@ -592,7 +592,7 @@ function update(dt) {
     if (got) {
       it.dead = true;
       if (it.k === 'drop') {
-        combo++; comboT = 1.6; score += 10 * mult; sed = Math.min(100, sed + 7); sfx.drop();
+        combo++; comboT = 3; score += 10 * mult; sed = Math.min(100, sed + 11); sfx.drop();
         if (Math.random() < .3) say(it.x, it.y - 20, '+' + 10 * mult, AMBER, 16, .6);
       } else if (it.k === 'bottle') {
         sed = Math.min(100, sed + 30); sfx.star();
@@ -613,7 +613,7 @@ function update(dt) {
   items = items.filter(i => !i.dead && i.x > -40);
 
   // sed compartida
-  sed -= (3 + Math.min(2, t * .012)) * wdt;
+  sed -= (2.8 + Math.min(2, t * .012)) * wdt;
   score += dx / 10;
 
   if (!alive.length || sed <= 0) {
@@ -846,16 +846,19 @@ function drawItem(it) {
   ctx.save(); const bob = Math.sin(clock * 5 + it.x * .02) * 4;
   ctx.translate(it.x, it.y + bob);
   if (it.k === 'drop') {
-    // gota de cerveza rubia: dorada clara, con burbujas y espuma
-    const g = ctx.createLinearGradient(0, -12, 0, 16);
-    g.addColorStop(0, '#ffe680'); g.addColorStop(.55, '#f7c531'); g.addColorStop(1, '#e09a12');
-    ctx.fillStyle = g; ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(0, -14); ctx.bezierCurveTo(9, -2, 10, 3, 10, 6); ctx.arc(0, 6, 10, 0, Math.PI); ctx.bezierCurveTo(-10, 3, -9, -2, 0, -14); ctx.fill(); ctx.stroke();
+    // pinta de cerveza rubia: vaso cónico, burbujas y espuma
+    ctx.rotate(Math.sin(clock * 3 + it.x * .03) * .12);
+    const g = ctx.createLinearGradient(0, -10, 0, 18);
+    g.addColorStop(0, '#ffd75a'); g.addColorStop(.6, '#f2b322'); g.addColorStop(1, '#d98a0e');
+    ctx.fillStyle = g; ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(-13, -10); ctx.lineTo(13, -10); ctx.lineTo(10, 18); ctx.lineTo(-10, 18); ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.9)';
-    const ph = (clock * 9 + it.x * .1) % 10;
-    for (const [bx, by, br] of [[-4, 11, 1.6], [3, 8, 1.2], [0, 13, 1.1]]) { ctx.beginPath(); ctx.arc(bx, by - ph * .6, br, 0, 6.29); ctx.fill(); }
-    ctx.fillStyle = '#fffaf0'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(-4, -7, 4.2, Math.PI * .6, Math.PI * 1.9); ctx.arc(1, -10, 4.8, Math.PI, Math.PI * 2); ctx.arc(5.5, -6.5, 3.8, Math.PI * 1.2, Math.PI * .4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    const ph = (clock * 12 + it.x * .1) % 14;
+    for (const [bx, by, br] of [[-5, 15, 1.5], [4, 12, 1.2], [0, 17, 1.1], [-2, 9, 1]]) { const yy = by - ph; if (yy > -8) { ctx.beginPath(); ctx.arc(bx, yy, br, 0, 6.29); ctx.fill(); } }
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(6, -6, 3, 21);
+    ctx.fillStyle = '#fffaf0';
+    ctx.beginPath(); ctx.moveTo(-14, -9); ctx.arc(-9, -12, 5.5, Math.PI * .9, Math.PI * 1.8); ctx.arc(-1, -15, 6.5, Math.PI * 1.05, Math.PI * 1.95); ctx.arc(8, -12, 6, Math.PI * 1.2, Math.PI * 2.1); ctx.lineTo(14, -9); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-13, -10); ctx.lineTo(-10, 18); ctx.lineTo(10, 18); ctx.lineTo(13, -10); ctx.stroke();
   } else if (it.k === 'bottle') {
     ctx.rotate(Math.sin(clock * 3) * .25);
     ctx.globalAlpha = .45 + .35 * Math.sin(clock * 8); ctx.strokeStyle = AMBER; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 34, 0, 6.29); ctx.stroke(); ctx.globalAlpha = 1;
@@ -1044,7 +1047,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v0.6.1', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v0.6.2', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
