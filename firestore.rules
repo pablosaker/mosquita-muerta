@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Top 5 de Mosquita Muerta: cualquiera puede leer y agregar puntajes,
+    // nadie puede editar ni borrar los de otros.
+    match /scores/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['n', 's', 'm', 't'])
+        && request.resource.data.keys().hasAll(['n', 's', 'm', 't'])
+        && request.resource.data.n is string
+        && request.resource.data.n.size() >= 1
+        && request.resource.data.n.size() <= 12
+        && request.resource.data.s is int
+        && request.resource.data.s >= 0
+        && request.resource.data.m is int
+        && request.resource.data.m >= 0
+        && request.resource.data.m <= 50000
+        && request.resource.data.s <= request.resource.data.m * 60 + 1000
+        && request.resource.data.t == request.time;
+      allow update, delete: if false;
+    }
+
+    // Todo lo demás, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

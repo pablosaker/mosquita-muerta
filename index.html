@@ -226,13 +226,55 @@ function circRect(cx, cy, r, x, y, w, h) {
 let best = 0, top5 = [], nameOpen = false, pendingName = false, savedIdx = -1;
 try { top5 = JSON.parse(localStorage.getItem('mosquita_top5') || '[]'); if (!Array.isArray(top5)) top5 = []; } catch (e) { top5 = []; }
 try { best = Math.max(+localStorage.getItem('mosca_best') || 0, top5[0] ? top5[0].s : 0); } catch (e) {}
-function qualifies(sc) { return sc > 0 && (top5.length < 5 || sc > top5[top5.length - 1].s); }
+/* ---------- top 5 global en Firestore (proyecto mosquita-muerta, aparte de la boletería) ----------
+   Se usa la API REST: sin librerías. Si no hay internet, queda el top 5 del dispositivo. */
+const FB = { key: 'AIzaSyAKqSVC3q7waYUagJmk3iS_zB2ipjHkY1M', pid: 'mosquita-muerta-cd551' };
+const FS_DOCS = 'https://firestore.googleapis.com/v1/projects/' + FB.pid + '/databases/(default)/documents';
+let globalTop = null, globalBusy = false, savedEntry = null;
+async function loadGlobal() {
+  if (globalBusy) return; globalBusy = true;
+  try {
+    const r = await fetch(FS_DOCS + ':runQuery?key=' + FB.key, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'scores' }], orderBy: [{ field: { fieldPath: 's' }, direction: 'DESCENDING' }], limit: 5 } })
+    });
+    if (!r.ok) throw new Error('top ' + r.status);
+    const rows = await r.json();
+    globalTop = rows.filter(x => x.document).map(x => {
+      const f = x.document.fields || {};
+      return { n: (f.n && f.n.stringValue) || '?', s: +((f.s && f.s.integerValue) || 0), m: +((f.m && f.m.integerValue) || 0) };
+    });
+  } catch (e) { console.warn('top 5 global no disponible', e); }
+  finally { globalBusy = false; }
+}
+async function postGlobal(e) {
+  try {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    const r = await fetch(FS_DOCS + ':commit?key=' + FB.key, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ writes: [{
+        update: { name: 'projects/' + FB.pid + '/databases/(default)/documents/scores/' + id,
+          fields: { n: { stringValue: e.n }, s: { integerValue: String(e.s) }, m: { integerValue: String(e.m) } } },
+        updateTransforms: [{ fieldPath: 't', setToServerValue: 'REQUEST_TIME' }],
+        currentDocument: { exists: false }
+      }] })
+    });
+    if (!r.ok) console.warn('no se pudo guardar el puntaje global', r.status, await r.text());
+    return r.ok;
+  } catch (err) { console.warn('no se pudo guardar el puntaje global', err); return false; }
+}
+function board() { return globalTop || top5; }
+function qualifies(sc) { const b = board(); return sc > 0 && (b.length < 5 || sc > b[b.length - 1].s); }
 function addScore(name, sc, m) {
   const e = { n: name, s: sc, m, t: Date.now() };
+  savedEntry = e;
   top5.push(e); top5.sort((a, b) => b.s - a.s); top5 = top5.slice(0, 5);
-  savedIdx = top5.indexOf(e); best = Math.max(best, top5[0].s);
+  best = Math.max(best, top5[0].s);
   try { localStorage.setItem('mosquita_top5', JSON.stringify(top5)); } catch (err) {}
+  if (globalTop) { globalTop.push(e); globalTop.sort((a, b) => b.s - a.s); globalTop = globalTop.slice(0, 5); }
+  postGlobal(e).then(ok => { if (ok) loadGlobal(); });
 }
+loadGlobal();
 const nmEl = document.getElementById('nm'), nmIn = document.getElementById('nmi');
 function openName() {
   nameOpen = true; nmIn.value = '';
@@ -313,7 +355,7 @@ function startGame() {
   if (touchMode) say(W / 2, FLOOR - 60, 'ARRASTRE EL DEDO EN CUALQUIER PARTE', INK, 26, 3);
   state = 'play';
 }
-function toTitle() { state = 'title'; players = []; countdown = -1; obs = []; items = []; fx = []; }
+function toTitle() { loadGlobal(); savedEntry = null; state = 'title'; players = []; countdown = -1; obs = []; items = []; fx = []; }
 
 /* ---------- spawners ---------- */
 function livingFlies() { return players.filter(p => p.alive); }
@@ -982,13 +1024,13 @@ function drawTitleV() {
     ctx.font = '700 21px ' + FONT_M;
     ctx.fillText('ARRASTRE EL DEDO EN CUALQUIER PARTE · TOQUE RÁPIDO = ZUMBIDO', W / 2, 590);
     ctx.fillText('TOME CERVEZA PARA NO MORIR DE SED · TOQUE LOS INTERRUPTORES', W / 2, 624);
-    if (top5[0]) { ctx.globalAlpha = .7; ctx.font = '700 18px ' + FONT_M; ctx.fillText('RÉCORD: ' + top5[0].n + ' · ' + top5[0].s, W / 2, 660); }
+    const b0 = board()[0]; if (b0) { ctx.globalAlpha = .7; ctx.font = '700 18px ' + FONT_M; ctx.fillText((globalTop ? 'RÉCORD MUNDIAL: ' : 'RÉCORD: ') + b0.n + ' · ' + b0.s, W / 2, 660); }
     if (IOS && !navigator.standalone) { ctx.globalAlpha = .5; ctx.font = '700 15px ' + FONT_M; ctx.fillText('IPHONE: COMPARTIR → AGREGAR A INICIO = PANTALLA COMPLETA', W / 2, 692); }
   } else {
     ctx.font = '700 14px ' + FONT_M;
     ctx.fillText('SOLO: TOME CERVEZA, ESQUIVE Y TOQUE LOS INTERRUPTORES · LA SED NO PERDONA', W / 2, 600);
     ctx.fillText('EN EQUIPO: SOLO LA CUERDA RECOGE CERVEZA · UNA MOSCA POR INTERRUPTOR', W / 2, 624);
-    ctx.globalAlpha = .45; ctx.fillText((top5[0] ? 'RÉCORD: ' + top5[0].n + ' · ' + top5[0].s : 'SIN RÉCORDS TODAVÍA') + '   ·   M = SONIDO', W / 2, 652);
+    ctx.globalAlpha = .45; ctx.fillText((board()[0] ? (globalTop ? 'RÉCORD MUNDIAL: ' : 'RÉCORD: ') + board()[0].n + ' · ' + board()[0].s : 'SIN RÉCORDS TODAVÍA') + '   ·   M = SONIDO', W / 2, 652);
   }
   ctx.restore();
 }
@@ -1008,11 +1050,11 @@ function drawOverV() {
 }
 function drawTop5(cx, y, rowH) {
   ctx.save();
-  ctx.textAlign = 'center'; ctx.fillStyle = INK; ctx.font = '22px ' + FONT_T; ctx.fillText('TOP 5', cx, y);
+  ctx.textAlign = 'center'; ctx.fillStyle = INK; ctx.font = '22px ' + FONT_T; ctx.fillText(globalTop ? 'TOP 5 · TODOS LOS JUGADORES' : 'TOP 5 · ESTE DISPOSITIVO', cx, y);
   const w = 460;
   for (let i = 0; i < 5; i++) {
-    const e = top5[i], ry = y + 14 + i * rowH;
-    if (i === savedIdx) { ctx.fillStyle = AMBER; ctx.fillRect(cx - w / 2, ry, w, rowH - 4); }
+    const e = board()[i], ry = y + 14 + i * rowH;
+    if (e && savedEntry && e.n === savedEntry.n && e.s === savedEntry.s) { ctx.fillStyle = AMBER; ctx.fillRect(cx - w / 2, ry, w, rowH - 4); }
     else { ctx.fillStyle = 'rgba(20,20,20,' + (i % 2 ? .04 : .08) + ')'; ctx.fillRect(cx - w / 2, ry, w, rowH - 4); }
     ctx.fillStyle = INK; ctx.font = '700 18px ' + FONT_M; ctx.textBaseline = 'middle';
     ctx.textAlign = 'left'; ctx.fillText((i + 1) + '.', cx - w / 2 + 12, ry + rowH / 2 - 2);
@@ -1047,7 +1089,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v0.6.2', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v0.7', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
