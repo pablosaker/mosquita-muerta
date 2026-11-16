@@ -456,9 +456,8 @@ function hitSpecial(p, o, pad) { // ¿la mosca toca este obstáculo de etapa?
   if (o.k === 'bass') return circRect(p.x, p.y, 15 + pad, o.x - 38, o.top ? CEIL : FLOOR - 110, 76, 110);
   if (o.k === 'waiter') return pad > 0 && circRect(p.x, p.y, 15 + pad, o.x - 46, o.y - 26, 92, 34); // solo la botella lo tumba
   if (o.k === 'umb') {
-    if (circRect(p.x, p.y, 13 + pad, o.x - 4, o.top, 8, FLOOR - o.top)) return true;
-    if (o.open < .5) return false;
-    return Math.hypot(p.x - o.x, p.y - o.top) < o.r * o.open + 12 + pad && p.y < o.top + 8;
+    if (o.open < .5) return false; // cerrada y el palo no hacen daño: se puede pasar por debajo
+    return Math.hypot(p.x - o.x, p.y - o.top) < o.r * o.open + 10 + pad && p.y < o.top - 4;
   }
   return false;
 }
@@ -888,7 +887,7 @@ function drawBg() {
       ctx.fillStyle = '#ff2bd6'; ctx.fillRect(x + 8, deck - 10, b.w - 16, 3);
     } else if (b.k === 'booth') {
       shape('#1f1f2e', () => ctx.rect(x, deck - 100, b.w, 100));
-      ctx.fillStyle = 'hsl(' + ((clock * 120) % 360) + ',90%,60%)'; ctx.fillRect(x + 10, deck - 60, b.w - 20, 6);
+      ctx.fillStyle = '#ff2bd6'; ctx.fillRect(x + 10, deck - 60, b.w - 20, 6);
       shape('#3a3a3a', () => ctx.ellipse(x + 55, deck - 108, 36, 9, 0, 0, 6.29)); shape('#3a3a3a', () => ctx.ellipse(x + 185, deck - 108, 36, 9, 0, 0, 6.29));
       ctx.font = '700 24px ' + FONT_M; ctx.fillStyle = '#f3eee2'; ctx.textAlign = 'center'; ctx.fillText('DJ', x + b.w / 2, deck - 22);
     } else if (b.k === 'grill') {
@@ -1378,7 +1377,7 @@ function drawStageFx() {
     for (let i = 1; i < 10; i++) {
       const u = i / 10, bx = x + seg * u, by = y0 + 2 * sag * 2 * u * (1 - u) * .5 + 8;
       const party = k === 'pista' || k === 'horaloca';
-      const col = party ? 'hsl(' + ((i * 47 + clock * (k === 'horaloca' ? 240 : 90)) % 360) + ',90%,60%)' : (i % 3 ? '#ffcf5a' : '#ff9a3c');
+      const col = party ? 'hsl(' + ((i * 47 + clock * (k === 'horaloca' ? 60 : 25)) % 360) + ',90%,60%)' : (i % 3 ? '#ffcf5a' : '#ff9a3c');
       ctx.globalAlpha = .3; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(bx, by, 14, 0, 6.29); ctx.fill();
       ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(bx, by, 6, 0, 6.29); ctx.fill(); ctx.globalAlpha = .7;
     }
@@ -1386,7 +1385,7 @@ function drawStageFx() {
   if (state !== 'title' && (k === 'pista' || k === 'horaloca')) { // luces de la pista
     for (let i = 0; i < 3; i++) {
       const lx = W * (.2 + .3 * i), a = Math.sin(clock * (.7 + i * .3) + i) * .7 + Math.PI / 2;
-      ctx.globalAlpha = .09; ctx.fillStyle = ['#ff2bd6', '#25a9b8', '#ffcf5a'][i];
+      ctx.globalAlpha = .05; ctx.fillStyle = ['#ff2bd6', '#25a9b8', '#ffcf5a'][i];
       ctx.beginPath(); ctx.moveTo(lx, CEIL); ctx.lineTo(lx + Math.cos(a - .18) * 900, CEIL + Math.sin(a - .18) * 900); ctx.lineTo(lx + Math.cos(a + .18) * 900, CEIL + Math.sin(a + .18) * 900); ctx.closePath(); ctx.fill();
     }
   }
@@ -1401,6 +1400,7 @@ function render() {
   ctx.save(); ctx.globalAlpha = .5; ctx.drawImage(tex, 0, 0); ctx.restore();
   drawBg();
   drawStageFx();
+  ctx.fillStyle = 'rgba(246,240,228,.42)'; ctx.fillRect(0, CEIL, W, FLOOR - CEIL); // velo: el fondo queda en segundo plano
   if (state !== 'title' && SK() === 'aguacero') drawRain();
   if (state === 'play' || state === 'over') {
     const dk = state === 'play' ? drunkK() : 0;
@@ -1440,7 +1440,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.2', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.2.1', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
