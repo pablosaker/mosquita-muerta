@@ -343,17 +343,17 @@ function spawnObs() {
 }
 function tapeDots() { const a = []; const n = 2 + Math.floor(Math.random() * 4); for (let i = 0; i < n; i++) a.push([rand(-7, 7), Math.random(), rand(2.5, 4.5)]); return a; }
 function spawnDrops() {
-  // la cuerda es la que recoge: los patrones piden ubicarse en equipo
-  const r = Math.random(), x0 = W + 40;
-  if (r < .35) { // fila ondulada
-    const n = 6 + Math.floor(Math.random() * 3), y0 = rand(CEIL + 90, FLOOR - 90), amp = rand(0, 50), ph = rand(0, 6);
-    for (let i = 0; i < n; i++) items.push({ k: 'drop', x: x0 + i * 44, y: y0 + Math.sin(ph + i * .7) * amp });
-  } else if (r < .7) { // columnas: hay que estirar la cuerda en vertical
-    const yc = rand(CEIL + 150, FLOOR - 150);
-    for (let c = 0; c < 2; c++) for (let i = 0; i < 5; i++) items.push({ k: 'drop', x: x0 + c * 160, y: yc + (i - 2) * 38 });
-  } else { // dos filas separadas: una mosca arriba, otra abajo
+  // menos gotas, más espaciadas (en equipo los patrones piden estirar la cuerda)
+  const r = Math.random(), x0 = W + 40, solo = players.length === 1;
+  if (r < .45) { // fila ondulada corta
+    const n = 3 + Math.floor(Math.random() * 3), y0 = rand(CEIL + 90, FLOOR - 90), amp = rand(0, 50), ph = rand(0, 6);
+    for (let i = 0; i < n; i++) items.push({ k: 'drop', x: x0 + i * 60, y: y0 + Math.sin(ph + i * .7) * amp });
+  } else if (r < .75) { // columna
+    const yc = rand(CEIL + 130, FLOOR - 130), cols = solo ? 1 : 2;
+    for (let c = 0; c < cols; c++) for (let i = 0; i < 3; i++) items.push({ k: 'drop', x: x0 + c * 180, y: yc + (i - 1) * 46 });
+  } else { // dos filas separadas: arriba o abajo, hay que escoger (en equipo, una mosca en cada una)
     const y1 = rand(CEIL + 70, (CEIL + FLOOR) / 2 - 70), y2 = y1 + rand(140, 200);
-    for (let i = 0; i < 5; i++) { items.push({ k: 'drop', x: x0 + i * 46, y: y1 }); items.push({ k: 'drop', x: x0 + i * 46, y: y2 }); }
+    for (let i = 0; i < 3; i++) { items.push({ k: 'drop', x: x0 + i * 60, y: y1 }); items.push({ k: 'drop', x: x0 + i * 60, y: y2 }); }
   }
 }
 
@@ -457,7 +457,7 @@ function update(dt) {
   nextObs -= dx;
   if (nextObs <= 0) { spawnObs(); nextObs = lerp(600, 330, clamp(t / 120, 0, 1)) * rand(.8, 1.3); }
   nextItem -= dx;
-  if (nextItem <= 0) { spawnDrops(); nextItem = rand(600, 950); }
+  if (nextItem <= 0) { spawnDrops(); nextItem = rand(900, 1350); }
   nextHop -= dx;
   if (nextHop <= 0) {
     const r = Math.random(), k = r < .4 ? 'hop' : r < .7 ? 'shades' : 'bottle';
@@ -592,7 +592,7 @@ function update(dt) {
     if (got) {
       it.dead = true;
       if (it.k === 'drop') {
-        combo++; comboT = 1.6; score += 10 * mult; sed = Math.min(100, sed + 4.5); sfx.drop();
+        combo++; comboT = 1.6; score += 10 * mult; sed = Math.min(100, sed + 7); sfx.drop();
         if (Math.random() < .3) say(it.x, it.y - 20, '+' + 10 * mult, AMBER, 16, .6);
       } else if (it.k === 'bottle') {
         sed = Math.min(100, sed + 30); sfx.star();
@@ -613,7 +613,7 @@ function update(dt) {
   items = items.filter(i => !i.dead && i.x > -40);
 
   // sed compartida
-  sed -= (3 + Math.min(3, t * .015)) * wdt;
+  sed -= (3 + Math.min(2, t * .012)) * wdt;
   score += dx / 10;
 
   if (!alive.length || sed <= 0) {
@@ -1044,7 +1044,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v0.6', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v0.6.1', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
