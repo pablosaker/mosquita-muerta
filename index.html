@@ -402,9 +402,16 @@ const SCENES = [
   { k: 'horaloca', n: 'LA HORA LOCA', hint: 'TODO MÁS RÁPIDO · LAS PINTAS VALEN DOBLE', tint: 'rgba(200,40,140,.09)' }
 ];
 const SK = () => SCENES[sceneIdx].k;
+const LINEUP = [ // en orden de aparición
+  { n: 'SURCONAUTAS', c: '#ff8a3d' },
+  { n: 'DE LA LOMA', c: '#b48cff' },
+  { n: 'HOMER', c: '#ffcf3a' },
+  { n: 'TATAN', c: '#25a9b8' },
+  { n: 'NATU', c: '#ff3d8b' }
+];
 let stageSlow = 0;
 function showStage(si) {
-  banner = { txt: SCENES[si].n, sub: si === SCENES.length - 1 ? 'ETAPA FINAL · HASTA QUE EL CUERPO AGUANTE' : 'ETAPA ' + (si + 1) + ' DE ' + SCENES.length, hint: SCENES[si].hint, life: 3.2, max: 3.2 };
+  banner = { txt: SCENES[si].n, sub: (si === SCENES.length - 1 ? 'ETAPA FINAL' : 'ETAPA ' + (si + 1) + ' DE ' + SCENES.length) + ' · EN LA CABINA: ' + LINEUP[si].n, hint: SCENES[si].hint, life: 3.2, max: 3.2 };
   stageSlow = 3; // cámara lenta mientras se lee el aviso
   tone(523, .12, 'triangle', .07); setTimeout(() => tone(784, .2, 'triangle', .07), 120);
 }
@@ -861,13 +868,13 @@ let fvN = 1;
 function makeBg(kind, x) {
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const T = {
-    llegada: () => pick([{ k: 'bar', x, w: 380, taps: 4 + Math.floor(Math.random() * 3) }, { k: 'table', x, w: 170 }, { k: 'plant', x, w: 90 }]),
+    llegada: () => pick([{ k: 'bar', x, w: 380, taps: 4 + Math.floor(Math.random() * 3) }, { k: 'table', x, w: 170 }, { k: 'plant', x, w: 90 }, { k: 'booth', x, w: 240 }]),
     pista: () => pick([{ k: 'spk', x, w: 100, h: rand(200, 280) }, { k: 'booth', x, w: 240 }, { k: 'spk', x, w: 100, h: rand(160, 220) }]),
-    parrilla: () => pick([{ k: 'grill', x, w: 200 }, { k: 'table', x, w: 170 }, { k: 'plant', x, w: 90 }]),
-    aguacero: () => pick([{ k: 'table', x, w: 170, open: true }, { k: 'plant', x, w: 90 }, { k: 'table', x, w: 170, open: true }]),
+    parrilla: () => pick([{ k: 'grill', x, w: 200 }, { k: 'table', x, w: 170 }, { k: 'plant', x, w: 90 }, { k: 'booth', x, w: 240 }]),
+    aguacero: () => pick([{ k: 'table', x, w: 170, open: true }, { k: 'plant', x, w: 90 }, { k: 'booth', x, w: 240 }]),
     horaloca: () => pick([{ k: 'spk', x, w: 100, h: rand(200, 280) }, { k: 'booth', x, w: 240 }, { k: 'bar', x, w: 380, taps: 5 }, { k: 'grill', x, w: 200 }])
   };
-  if (T[kind]) return T[kind]();
+  if (T[kind]) { const b = T[kind](); if (b.k === 'booth' && bg.some(o => o.k === 'booth')) return { k: 'plant', x, w: 90 }; return b; } // una sola cabina a la vista
   if (kind === 'planta') return Math.random() < .55 ? { k: 'olla', x, w: rand(170, 230), h: rand(220, 300) } : { k: 'pipes', x, w: rand(160, 260), h: rand(140, 260) };
   if (kind === 'ferm') return { k: 'fv', x, w: 150, h: rand(330, 420), n: fvN++ };
   if (kind === 'tap') return Math.random() < .6 ? { k: 'bar', x, w: 380, taps: 4 + Math.floor(Math.random() * 3) } : { k: 'stools', x, w: 220 };
@@ -905,10 +912,7 @@ function drawBg() {
       ctx.beginPath(); ctx.arc(x + b.w / 2, deck - b.h * .4, 34, 0, 6.29); ctx.stroke();
       ctx.fillStyle = '#ff2bd6'; ctx.fillRect(x + 8, deck - 10, b.w - 16, 3);
     } else if (b.k === 'booth') {
-      shape('#1f1f2e', () => ctx.rect(x, deck - 100, b.w, 100));
-      ctx.fillStyle = '#ff2bd6'; ctx.fillRect(x + 10, deck - 60, b.w - 20, 6);
-      shape('#3a3a3a', () => ctx.ellipse(x + 55, deck - 108, 36, 9, 0, 0, 6.29)); shape('#3a3a3a', () => ctx.ellipse(x + 185, deck - 108, 36, 9, 0, 0, 6.29));
-      ctx.font = '700 24px ' + FONT_M; ctx.fillStyle = '#f3eee2'; ctx.textAlign = 'center'; ctx.fillText('DJ', x + b.w / 2, deck - 22);
+      // se dibuja en drawBooths(), encima del velo
     } else if (b.k === 'grill') {
       const cx = x + b.w / 2;
       ctx.strokeStyle = 'rgba(120,110,100,.6)'; ctx.lineWidth = 6; ctx.beginPath(); for (let i = -1; i <= 1; i++) { const sx = cx + i * 40, ph = clock * 2 + i; ctx.moveTo(sx, deck - 130); ctx.bezierCurveTo(sx + 14 * Math.sin(ph), deck - 170, sx - 14 * Math.sin(ph), deck - 200, sx + 8 * Math.sin(ph), deck - 240); } ctx.stroke();
@@ -917,6 +921,32 @@ function drawBg() {
       shape('#222', () => { ctx.moveTo(cx - 50, deck - 90); ctx.lineTo(cx - 62, deck); ctx.lineTo(cx - 56, deck); ctx.lineTo(cx - 44, deck - 88); });
       shape('#222', () => { ctx.moveTo(cx + 50, deck - 90); ctx.lineTo(cx + 62, deck); ctx.lineTo(cx + 56, deck); ctx.lineTo(cx + 44, deck - 88); });
     }
+  }
+  ctx.restore();
+}
+function drawBooths() { // cabinas con el DJ de cada etapa (figura genérica + nombre)
+  const deck = FLOOR - 58;
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const b of bg) {
+    if (b.k !== 'booth') continue;
+    const x = b.x, dj = LINEUP[state === 'title' ? 0 : sceneIdx], cx = x + b.w / 2, bob = Math.sin(clock * 7 + x) * 3, arm = Math.sin(clock * 3.5 + x) ;
+    ctx.globalAlpha = .9;
+    // DJ (silueta genérica con audífonos)
+    ctx.fillStyle = dj.c; ctx.strokeStyle = INK; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(cx - 30, deck - 96); ctx.lineTo(cx - 24, deck - 150 + bob); ctx.lineTo(cx + 24, deck - 150 + bob); ctx.lineTo(cx + 30, deck - 96); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(cx, deck - 172 + bob, 19, 0, 6.29); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, deck - 174 + bob, 23, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    ctx.fillStyle = dj.c; ctx.lineWidth = 3; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * 21, deck - 170 + bob, 6, 9, 0, 0, 6.29); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx - 22, deck - 140 + bob); ctx.lineTo(cx - 52, deck - 110); ctx.stroke(); // brazo en la tornamesa
+    ctx.beginPath(); ctx.moveTo(cx + 22, deck - 140 + bob); ctx.lineTo(cx + 40 + arm * 6, deck - 186 - arm * 14); ctx.stroke(); // brazo arriba
+    // cabina
+    ctx.fillStyle = '#1f1f2e'; ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.fillRect(x, deck - 100, b.w, 100); ctx.strokeRect(x, deck - 100, b.w, 100);
+    ctx.fillStyle = '#3a3a3a'; for (const tx of [x + 55, x + b.w - 55]) { ctx.beginPath(); ctx.ellipse(tx, deck - 106, 34, 8, 0, 0, 6.29); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = dj.c; ctx.fillRect(x + 10, deck - 88, b.w - 20, 5);
+    ctx.font = '700 ' + (dj.n.length > 9 ? 20 : 24) + 'px ' + FONT_M; ctx.fillStyle = '#f3eee2'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(dj.n, cx, deck - 50);
+    ctx.font = '700 11px ' + FONT_M; ctx.fillStyle = dj.c; ctx.fillText('EN LA CABINA', cx, deck - 22);
   }
   ctx.restore();
 }
@@ -1421,6 +1451,7 @@ function render() {
   drawBg();
   drawStageFx();
   ctx.fillStyle = 'rgba(246,240,228,.6)'; ctx.fillRect(0, CEIL, W, FLOOR - CEIL); // velo: el fondo queda en segundo plano
+  drawBooths();
   if (state !== 'title' && SK() === 'aguacero') drawRain();
   if (state === 'play' || state === 'over') {
     const dk = state === 'play' ? drunkK() : 0;
@@ -1460,7 +1491,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.3', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.4', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
