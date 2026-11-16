@@ -133,6 +133,7 @@ const sfx = {
   free() { tone(400, .15, 'triangle', .08, 900); },
   revive() { tone(600, .35, 'sine', .09, 1300); },
   shield() { tone(220, .2, 'square', .07, 110); },
+  eat() { tone(240, .12, 'sawtooth', .08, 160); setTimeout(() => tone(160, .3, 'sawtooth', .08, 70), 110); },
   star() { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => tone(f, .12, 'square', .07), i * 70)); },
   shades() { tone(1400, .45, 'sine', .08, 220); setTimeout(() => tone(220, .3, 'triangle', .06, 440), 300); },
   over() { tone(330, .25, 'square', .07, 220); setTimeout(() => tone(220, .5, 'square', .07, 110), 220); }
@@ -376,7 +377,7 @@ document.getElementById('nmno').addEventListener('click', () => saveName(true));
 const SCENES = [
   { k: 'llegada', n: 'LA LLEGADA', hint: 'ATARDECER EN LA TERRAZA · CALIENTE MOTORES', tint: 'rgba(255,150,60,.09)' },
   { k: 'pista', n: 'LA PISTA', hint: 'LOS BAJOS LA EMPUJAN · ESQUIVE LOS LÁSERES', tint: 'rgba(70,30,140,.13)' },
-  { k: 'parrilla', n: 'LA PARRILLA', hint: 'EL HUMO NO DEJA VER · OJO CON LOS MESEROS', tint: 'rgba(110,80,50,.08)' },
+  { k: 'parrilla', n: 'LA PARRILLA', hint: 'EL HUMO NO DEJA VER · NO SE COMA LA COMIDA: COMER ES RETROCEDER', tint: 'rgba(110,80,50,.08)' },
   { k: 'aguacero', n: 'EL AGUACERO', hint: 'LA LLUVIA LA EMPUJA HACIA ABAJO · CUIDADO CON LAS SOMBRILLAS', tint: 'rgba(50,80,120,.13)' },
   { k: 'horaloca', n: 'LA HORA LOCA', hint: 'TODO MÁS RÁPIDO · LAS PINTAS VALEN DOBLE', tint: 'rgba(200,40,140,.09)' }
 ];
@@ -451,9 +452,9 @@ function livingFlies() { return players.filter(p => p.alive); }
 function laserEnd(o) { const ax = o.x, ay = o.top ? CEIL : FLOOR; return [ax, ay, ax + Math.cos(o.a) * 1500, ay + Math.sin(o.a) * 1500]; }
 function bassCenter(o) { return [o.x, o.top ? CEIL + 55 : FLOOR - 55]; }
 function hitSpecial(p, o, pad) { // ¿la mosca toca este obstáculo de etapa?
-  if (o.k === 'laser') { if (!o.on) return false; const [ax, ay, ex, ey] = laserEnd(o); return segDist(p.x, p.y, ax, ay, ex, ey) < 13 + pad; }
+  if (o.k === 'laser') { if (!o.on) return false; const [ax, ay, ex, ey] = laserEnd(o); return segDist(p.x, p.y, ax, ay, ex, ey) < 8 + pad; }
   if (o.k === 'bass') return circRect(p.x, p.y, 15 + pad, o.x - 38, o.top ? CEIL : FLOOR - 110, 76, 110);
-  if (o.k === 'waiter') return circRect(p.x, p.y, 15 + pad, o.x - 46, o.y - 26, 92, 34);
+  if (o.k === 'waiter') return pad > 0 && circRect(p.x, p.y, 15 + pad, o.x - 46, o.y - 26, 92, 34); // solo la botella lo tumba
   if (o.k === 'umb') {
     if (circRect(p.x, p.y, 13 + pad, o.x - 4, o.top, 8, FLOOR - o.top)) return true;
     if (o.open < .5) return false;
@@ -463,16 +464,21 @@ function hitSpecial(p, o, pad) { // ¿la mosca toca este obstáculo de etapa?
 }
 function spawnSpecial(k) {
   const span = FLOOR - CEIL;
-  if (k === 'laser') obs.push({ k, x: W + 60, top: Math.random() < .55, warn: 1.1, tw: 0, ph: rand(0, 6), amp: rand(.5, .8), spd: rand(1.1, 1.6), on: false, a: 0 });
+  if (k === 'laser') obs.push({ k, x: W + 60, top: Math.random() < .55, tw: 0, ph: rand(0, 6), amp: rand(.3, .5), spd: rand(.55, .85), on: false, warnNow: false, a: 0 });
   else if (k === 'bass') obs.push({ k, x: W + 60, top: Math.random() < .3, cd: .5, rings: [], kick: 0 });
-  else if (k === 'waiter') obs.push({ k, x: W + 60, tw: 0, ph: rand(0, 6), spd: rand(1.2, 1.8), y: (CEIL + FLOOR) / 2 });
+  else if (k === 'waiter') obs.push({ k, x: W + 60, tw: 0, ph: rand(0, 6), spd: rand(1.2, 1.8), y: (CEIL + FLOOR) / 2, food: [0, 1, 2].map(() => Math.random() < .5 ? 'taco' : 'burger') });
   else if (k === 'smoke') obs.push({ k, x: W + 220, y: rand(CEIL + 90, FLOOR - 90), r: rand(150, 210), seed: rand(0, 100) });
   else if (k === 'umb') obs.push({ k, x: W + 60, top: FLOOR - span * rand(.42, .62), r: rand(95, 125), open: 0, opening: false });
 }
 const STAGE_OBS = { pista: ['laser', 'bass'], parrilla: ['waiter', 'smoke', 'waiter'], aguacero: ['umb'], horaloca: ['laser', 'bass', 'waiter', 'umb'] };
 function spawnObs() {
   const special = STAGE_OBS[SK()];
-  if (special && t > 2 && Math.random() < .5) { spawnSpecial(special[Math.floor(Math.random() * special.length)]); return; }
+  if (special && t > 2 && Math.random() < .5) {
+    const k = special[Math.floor(Math.random() * special.length)];
+    // un solo parlante y un solo láser a la vez en pantalla
+    const busy = (k === 'bass' && obs.some(o => o.k === 'bass')) || (k === 'laser' && obs.some(o => o.k === 'laser'));
+    if (!busy) { spawnSpecial(k); return; }
+  }
   const r = Math.random();
   const hard = clamp(t / 120, 0, 1);
   if (r < 0.34 && t > 4) {
@@ -642,10 +648,14 @@ function update(dt) {
     }
     if (o.k === 'lamp') { o.zap -= wdt; o.burn = (o.burn || 0) - wdt; }
     if (o.k === 'gate' && o.open) o.openT += wdt;
-    if (o.k === 'laser') { o.tw += wdt; o.on = o.tw > o.warn; o.a = (o.top ? Math.PI / 2 : -Math.PI / 2) + o.amp * Math.sin(o.spd * o.tw + o.ph); }
+    if (o.k === 'laser') { // ciclo de 3 s: apagado → aviso 0,7 s → prendido 1,1 s
+      o.tw += wdt; const cy = o.tw % 3;
+      o.warnNow = cy > .5 && cy <= 1.2; o.on = cy > 1.2 && cy <= 2.3;
+      o.a = (o.top ? Math.PI / 2 : -Math.PI / 2) + o.amp * Math.sin(o.spd * o.tw + o.ph);
+    }
     if (o.k === 'bass') {
       o.cd -= wdt; o.kick = Math.max(0, o.kick - wdt * 4);
-      if (o.cd <= 0 && o.x < W - 40) { o.rings.push(0); o.cd = 1.5; o.kick = 1; tone(70, .22, 'sine', .14, 38); }
+      if (o.cd <= 0 && o.x < W - 40) { o.rings.push(0); o.cd = 1.7; o.kick = 1; tone(70, .22, 'sine', .14, 38); }
       o.rings = o.rings.map(r => r + 480 * wdt).filter(r => r < 470);
     }
     if (o.k === 'waiter') { o.tw += wdt; o.y = (CEIL + FLOOR) / 2 + ((FLOOR - CEIL) / 2 - 70) * Math.sin(o.tw * o.spd + o.ph); }
@@ -686,9 +696,15 @@ function update(dt) {
         if (d < 40) { o.zap = .4; kill(p, 'lamp'); }
       } else if (o.k === 'laser' || o.k === 'bass' || o.k === 'waiter' || o.k === 'umb') {
         if (hitSpecial(p, o, 0)) kill(p, o.k);
+        if (o.k === 'waiter' && !p.stuck && p.deadT <= 0) o.food.forEach((f, i) => { // comer es retroceder
+          if (!f || Math.hypot(p.x - (o.x + (i - 1) * 30), p.y - (o.y - 16)) > 26) return;
+          o.food[i] = null; const loss = Math.min(150, Math.floor(score));
+          score -= loss; sfx.eat(); burst(o.x + (i - 1) * 30, o.y - 16, '#c0392b', 12);
+          say(p.x, p.y - 50, '¡COMER ES RETROCEDER! −' + loss, RED, 26, 1.6);
+        });
         if (o.k === 'bass' && !p.stuck) { // las ondas de los bajos empujan
           const [cx, cy] = bassCenter(o), ddx = p.x - cx, ddy = p.y - cy, d = Math.hypot(ddx, ddy);
-          for (const r of o.rings) if (Math.abs(d - r) < 36 && d > 1) { const f = 620 * (1 - r / 470); p.x += ddx / d * f * dt; p.y += ddy / d * f * dt; }
+          for (const r of o.rings) if (Math.abs(d - r) < 48 && d > 1) { const f = 1400 * (1 - r / 470); p.x += ddx / d * f * dt; p.y += ddy / d * f * dt; }
         }
       } else if (o.k === 'tape' && !p.stuck && p.inv <= 0) {
         const y0 = o.top ? CEIL : FLOOR - o.len;
@@ -794,7 +810,7 @@ function update(dt) {
 
   // sed compartida
   sed -= (2.8 + Math.min(2, t * .012)) * wdt;
-  score += dx / 10 * (inIdeal() ? 2 : 1);
+  score += dx / 10 * (drunkK() > 0 ? 3 : inIdeal() ? 2 : 1); // borracha ×3, en su punto ×2, sobria ×1
   if (wasDrunk && sed < DRUNK_AT - 2) { wasDrunk = false; say(W / 2, CEIL + 90, 'SE LE PASÓ LA BORRACHERA', INK, 28, 1.5); }
   { // la borracha se tambalea
     const dk = drunkK();
@@ -1049,8 +1065,8 @@ function drawObs(o) {
   } else if (o.k === 'laser') {
     const [ax, ay, ex, ey] = laserEnd(o);
     ctx.save(); ctx.beginPath(); ctx.rect(0, CEIL, W, FLOOR - CEIL); ctx.clip();
-    if (!o.on) { ctx.globalAlpha = .4 + .4 * Math.abs(Math.sin(clock * 14)); ctx.strokeStyle = '#ff2bd6'; ctx.lineWidth = 2; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]); }
-    else { ctx.globalAlpha = .28; ctx.strokeStyle = '#ff2bd6'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 4; ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    if (o.warnNow) { ctx.globalAlpha = .4 + .4 * Math.abs(Math.sin(clock * 14)); ctx.strokeStyle = '#ff2bd6'; ctx.lineWidth = 2; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]); }
+    else if (o.on) { ctx.globalAlpha = .28; ctx.strokeStyle = '#ff2bd6'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 4; ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
     ctx.restore();
     ctx.globalAlpha = 1; ctx.fillStyle = INK; ctx.fillRect(ax - 16, o.top ? ay : ay - 18, 32, 18);
     ctx.fillStyle = '#ff2bd6'; ctx.beginPath(); ctx.arc(ax, ay, 5, 0, 6.29); ctx.fill();
@@ -1064,8 +1080,8 @@ function drawObs(o) {
   } else if (o.k === 'waiter') {
     ctx.strokeStyle = INK; ctx.lineCap = 'round'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(o.x + 34, o.y + 52); ctx.lineTo(o.x + 8, o.y + 10); ctx.stroke(); ctx.lineCap = 'butt';
     ctx.fillStyle = PAPER; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(o.x + 6, o.y + 8, 8, 0, 6.29); ctx.fill(); ctx.stroke();
-    for (let i = -1; i <= 1; i++) { const gx = o.x + i * 26; ctx.fillStyle = '#f2b322'; ctx.fillRect(gx - 8, o.y - 26, 16, 20); ctx.strokeRect(gx - 8, o.y - 26, 16, 20); ctx.fillStyle = '#fffaf0'; ctx.fillRect(gx - 9, o.y - 31, 18, 6); ctx.strokeRect(gx - 9, o.y - 31, 18, 6); }
-    ctx.fillStyle = '#cfcfcf'; ctx.beginPath(); ctx.ellipse(o.x, o.y - 3, 48, 8, 0, 0, 6.29); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#cfcfcf'; ctx.beginPath(); ctx.ellipse(o.x, o.y - 3, 50, 8, 0, 0, 6.29); ctx.fill(); ctx.stroke();
+    o.food.forEach((f, i) => { if (f) drawFood(f, o.x + (i - 1) * 30, o.y - 16); });
   } else if (o.k === 'umb') {
     ctx.strokeStyle = INK; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(o.x, o.top - 8); ctx.lineTo(o.x, FLOOR); ctx.stroke();
     if (o.open < .05) {
@@ -1170,7 +1186,7 @@ function drawHUD() {
   const bx = W / 2 - 170, bw = 340, by = CEIL / 2 - 4, low = sed < 20, dk = drunkK(), ideal = inIdeal();
   const zx = v => bx + 3 + (bw - 6) * v / 100;
   ctx.textAlign = 'center'; ctx.font = '700 12px ' + FONT_M;
-  const lbl = low ? '¡SE MUERE DE SED! TOME CERVEZA' : dk > 0 ? '¡BORRACHA! NO TOME MÁS' : ideal ? 'EN SU PUNTO · PUNTOS ×2' : sed > IDEAL_HI ? 'PRENDIDA · CUIDADO' : 'CON SED';
+  const lbl = low ? '¡SE MUERE DE SED! TOME CERVEZA' : dk > 0 ? '¡BORRACHA! PUNTOS ×3' : ideal ? 'EN SU PUNTO · PUNTOS ×2' : sed > IDEAL_HI ? 'PRENDIDA · CUIDADO' : 'CON SED';
   ctx.fillStyle = (low || dk > 0) && Math.sin(clock * 12) > 0 ? (low ? RED : '#b9a2ff') : ideal ? '#9be07a' : PAPER;
   ctx.fillText(lbl, W / 2, CEIL / 2 - 18);
   ctx.fillStyle = 'rgba(92,174,60,.35)'; ctx.fillRect(zx(IDEAL_LO), by + 1, zx(IDEAL_HI) - zx(IDEAL_LO), 16);
@@ -1287,6 +1303,22 @@ function drawTop5(cx, y, rowH) {
 }
 
 function drawTouch() {}
+function drawFood(f, x, y) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = INK; ctx.lineWidth = 2;
+  if (f === 'taco') {
+    ctx.fillStyle = '#5cae3c'; ctx.beginPath(); ctx.ellipse(0, -3, 12, 5, 0, Math.PI, 0); ctx.fill(); // lechuga
+    ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(-5, -5, 2.5, 0, 6.29); ctx.arc(4, -6, 2.5, 0, 6.29); ctx.fill(); // tomate
+    ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.arc(0, 0, 13, Math.PI * 1.05, Math.PI * 1.95, true); ctx.closePath(); ctx.fill(); ctx.stroke(); // tortilla
+  } else {
+    ctx.fillStyle = '#d98a3a'; ctx.beginPath(); ctx.ellipse(0, -6, 13, 8, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); // pan de arriba
+    ctx.fillStyle = '#fffaf0'; ctx.beginPath(); ctx.arc(-4, -10, 1.2, 0, 6.29); ctx.arc(3, -11, 1.2, 0, 6.29); ctx.fill();
+    ctx.fillStyle = '#5cae3c'; ctx.fillRect(-13, -6, 26, 3);
+    ctx.fillStyle = '#ffcf3a'; ctx.beginPath(); ctx.moveTo(-13, -3); ctx.lineTo(13, -3); ctx.lineTo(8, 1); ctx.lineTo(-8, 1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5a2e0e'; ctx.fillRect(-13, -1, 26, 6); ctx.strokeRect(-13, -1, 26, 6); // carne
+    ctx.fillStyle = '#d98a3a'; ctx.fillRect(-12, 5, 24, 5); ctx.strokeRect(-12, 5, 24, 5); // pan de abajo
+  }
+  ctx.restore();
+}
 function drawSmoke() {
   const fade = 1 - .55 * drunkK(); // borracha + humo sería ilegible: el humo baja
   for (const o of obs) {
@@ -1375,7 +1407,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.0', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.1', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
