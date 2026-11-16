@@ -406,8 +406,8 @@ const LINEUP = [ // en orden de aparición
   { n: 'SURCONAUTAS', c: '#ff8a3d' },
   { n: 'DE LA LOMA', c: '#b48cff' },
   { n: 'HOMER', c: '#ffcf3a' },
-  { n: 'TATAN', c: '#25a9b8' },
-  { n: 'NATU', c: '#ff3d8b' }
+  { n: 'TATAN', c: '#25a9b8', hat: 'bucket', beard: true },
+  { n: 'NATU', c: '#ff3d8b', hat: 'cap' }
 ];
 let stageSlow = 0;
 function showStage(si) {
@@ -934,9 +934,25 @@ function drawBooths() { // cabinas con el DJ de cada etapa (figura genérica + n
     // DJ (silueta genérica con audífonos)
     ctx.fillStyle = dj.c; ctx.strokeStyle = INK; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(cx - 30, deck - 96); ctx.lineTo(cx - 24, deck - 150 + bob); ctx.lineTo(cx + 24, deck - 150 + bob); ctx.lineTo(cx + 30, deck - 96); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(cx, deck - 172 + bob, 19, 0, 6.29); ctx.fill(); ctx.stroke();
-    ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, deck - 174 + bob, 23, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
-    ctx.fillStyle = dj.c; ctx.lineWidth = 3; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * 21, deck - 170 + bob, 6, 9, 0, 0, 6.29); ctx.fill(); ctx.stroke(); }
+    const hy = deck - 172 + bob;
+    ctx.fillStyle = '#e6dccb'; ctx.beginPath(); ctx.arc(cx, hy, 19, 0, 6.29); ctx.fill(); ctx.stroke(); // cabeza estilo muñeco, sin cara
+    if (dj.beard) { // barba apenas marcada
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, hy, 18, 0, 6.29); ctx.clip();
+      ctx.fillStyle = 'rgba(70,50,40,.72)'; ctx.beginPath(); ctx.moveTo(cx - 19, hy + 1); ctx.quadraticCurveTo(cx, hy + 6, cx + 19, hy - 1); ctx.lineTo(cx + 19, hy + 20); ctx.lineTo(cx - 19, hy + 20); ctx.closePath(); ctx.fill();
+      ctx.restore(); ctx.strokeStyle = INK;
+    }
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, hy - 2, 23, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    ctx.fillStyle = dj.c; ctx.lineWidth = 3; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * 21, hy + 2, 6, 9, 0, 0, 6.29); ctx.fill(); ctx.stroke(); }
+    if (dj.hat === 'cap') { // gorra
+      ctx.fillStyle = '#141414'; ctx.beginPath(); ctx.arc(cx, hy - 5, 20, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dj.c; ctx.beginPath(); ctx.ellipse(cx + 16, hy - 5, 17, 4.5, -.08, 0, 6.29); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dj.c; ctx.beginPath(); ctx.arc(cx, hy - 24, 3, 0, 6.29); ctx.fill();
+    } else if (dj.hat === 'bucket') { // bucket hat
+      ctx.fillStyle = '#d9c39a';
+      ctx.beginPath(); ctx.moveTo(cx - 16, hy - 8); ctx.lineTo(cx - 12, hy - 30); ctx.quadraticCurveTo(cx, hy - 34, cx + 12, hy - 30); ctx.lineTo(cx + 16, hy - 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 30, hy - 3); ctx.quadraticCurveTo(cx, hy - 16, cx + 30, hy - 3); ctx.quadraticCurveTo(cx, hy - 9, cx - 30, hy - 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(20,20,20,.5)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - 14, hy - 14); ctx.quadraticCurveTo(cx, hy - 17, cx + 14, hy - 14); ctx.stroke(); ctx.strokeStyle = INK;
+    }
     ctx.strokeStyle = INK; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(cx - 22, deck - 140 + bob); ctx.lineTo(cx - 52, deck - 110); ctx.stroke(); // brazo en la tornamesa
     ctx.beginPath(); ctx.moveTo(cx + 22, deck - 140 + bob); ctx.lineTo(cx + 40 + arm * 6, deck - 186 - arm * 14); ctx.stroke(); // brazo arriba
@@ -1491,7 +1507,7 @@ function render() {
   drawTouch();
   drawFx();
   if (state !== 'title') drawHUD();
-  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.4', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
+  else { ctx.fillStyle = PAPER; ctx.font = '700 14px ' + FONT_M; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('BAJO CUERDA · CERVECERÍA ARTESANAL · PEREIRA', 24, CEIL / 2); ctx.textAlign = 'right'; ctx.fillText('PROTOTIPO v1.4.1', W - 24, CEIL / 2); ctx.textBaseline = 'alphabetic'; }
   if (state === 'play') {
     drawBanner();
     let sy = CEIL + 28;
