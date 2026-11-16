@@ -30,7 +30,10 @@
 <div id="rot"><div class="ph"></div>GIRE EL CELULAR<small>SE JUEGA CON EL CELULAR ACOSTADO</small></div>
 <script>
 (() => {
-const W = 1280, H = 720, CEIL = 72, FLOOR = H - 36;
+let W = 1280, H = 720;
+const CEIL = 72; let FLOOR = H - 36;
+// celular/tablet: el mundo es más bajo (cámara más cerca) y tan ancho como la pantalla
+const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 const INK = '#141414', PAPER = '#f3eee2', AMBER = '#e8a317', RED = '#e0453a';
 const COLORS = ['#e8a317', '#25a9b8', '#e0453a', '#5cae3c'];
 const FONT_T = '"Archivo Black", "Arial Black", Impact, sans-serif';
@@ -43,11 +46,16 @@ fly.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAC8CAYAAAA96+FJAAB
 let dpr = 1;
 function fit() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
+  const phone = COARSE || touchMode;
+  H = phone ? 520 : 720; FLOOR = H - 36;
+  const aspect = innerWidth / Math.max(1, innerHeight);
+  W = Math.round(clamp(H * aspect, phone ? H * 1.5 : 1280, H * 2.4));
+  if (!phone) W = Math.max(1280, Math.min(W, 1600));
   const s = Math.min(innerWidth / W, innerHeight / H);
   cv.style.width = (W * s) + 'px'; cv.style.height = (H * s) + 'px';
   cv.width = W * dpr; cv.height = H * dpr;
 }
-addEventListener('resize', fit); fit();
+addEventListener('resize', () => fit());
 document.getElementById('fs').addEventListener('click', () => {
   initAudio();
   const el = document.documentElement;
@@ -113,7 +121,7 @@ const tch = { id: null, lx: 0, ly: 0, dx: 0, dy: 0, t0: 0, travel: 0 }, touchHit
 function toGame(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
 function enterTouchMode() {
   if (touchMode) return;
-  touchMode = true;
+  touchMode = true; fit();
   const b = document.getElementById('fs'); if (b) b.style.display = 'none';
 }
 function tryFullscreen() {
@@ -285,7 +293,7 @@ function spawnObs() {
       obs.push({ k: 'tape', x: W + 40, top: true, len: top, w: 26, dots: tapeDots() });
       obs.push({ k: 'tape', x: W + 40, top: false, len: span - gap - top, w: 26, dots: tapeDots() });
     } else {
-      obs.push({ k: 'tape', x: W + 40, top: Math.random() < 0.6, len: rand(150, 330 + hard * 120), w: 26, dots: tapeDots() });
+      obs.push({ k: 'tape', x: W + 40, top: Math.random() < 0.6, len: rand(150, 330 + hard * 120) * (FLOOR - CEIL) / 612, w: 26, dots: tapeDots() });
     }
   }
 }
@@ -612,9 +620,9 @@ function drawRain() {
 }
 
 /* ---------- textura halftone ---------- */
-const tex = document.createElement('canvas'); tex.width = W; tex.height = H;
+const tex = document.createElement('canvas'); tex.width = 2600; tex.height = 720;
 (() => { const c = tex.getContext('2d'); c.fillStyle = INK;
-  for (let y = 0; y < H; y += 9) for (let x = (y / 9 % 2) * 4.5; x < W; x += 9) {
+  for (let y = 0; y < 720; y += 9) for (let x = (y / 9 % 2) * 4.5; x < 2600; x += 9) {
     const v = (Math.sin(x * .004 + y * .007) + Math.sin(x * .011 - y * .003)) * .5;
     const r = Math.max(0, v) * 1.6; if (r > .2) { c.globalAlpha = .07; c.beginPath(); c.arc(x, y, r, 0, 6.29); c.fill(); }
   } })();
@@ -787,7 +795,7 @@ function drawHUD() {
   ctx.font = '18px ' + FONT_T; ctx.fillText('MOSQUITA MUERTA', 24, CEIL / 2);
   ctx.font = '700 13px ' + FONT_M; ctx.globalAlpha = .6; ctx.fillText('BAJO CUERDA', 26, CEIL / 2 + 22); ctx.globalAlpha = 1;
   ctx.font = '700 30px ' + FONT_M; ctx.fillText(String(Math.floor(score)).padStart(6, '0'), 230, CEIL / 2);
-  if (mult > 1) { ctx.fillStyle = AMBER; ctx.font = '16px ' + FONT_T; ctx.fillText('CUERDA ×' + mult, 350, CEIL / 2); }
+  if (mult > 1) { ctx.fillStyle = AMBER; ctx.font = '700 13px ' + FONT_M; ctx.fillText((players.length > 1 ? 'CUERDA ×' : 'COMBO ×') + mult, 232, CEIL / 2 + 22); }
   // barra de sed compartida
   const bx = W / 2 - 170, bw = 340, by = CEIL / 2 - 4, low = sed < 25;
   ctx.textAlign = 'center'; ctx.font = '700 12px ' + FONT_M; ctx.fillStyle = low && Math.sin(clock * 12) > 0 ? RED : PAPER;
@@ -824,7 +832,14 @@ function drawBanner() {
 }
 function centerText(txt, y, font, col) { ctx.font = font; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.fillText(txt, W / 2, y); }
 
-function drawTitle() {
+function virtualBox(fn) {
+  const sW = W, sH = H, sF = FLOOR, k = Math.min(W / 1280, H / 720);
+  ctx.save(); ctx.translate((W - 1280 * k) / 2, (H - 720 * k) / 2); ctx.scale(k, k);
+  W = 1280; H = 720; FLOOR = 684;
+  try { fn(); } finally { W = sW; H = sH; FLOOR = sF; ctx.restore(); }
+}
+function drawTitle() { virtualBox(drawTitleV); }
+function drawTitleV() {
   ctx.save();
   drawFly(W / 2, 205, Math.sin(clock * 1.5) * .08, 1, .62);
   ctx.textBaseline = 'alphabetic';
@@ -859,8 +874,11 @@ function drawTitle() {
   ctx.restore();
 }
 function drawOver() {
-  ctx.save();
   ctx.fillStyle = 'rgba(243,238,226,.88)'; ctx.fillRect(0, CEIL, W, FLOOR - CEIL);
+  virtualBox(drawOverV);
+}
+function drawOverV() {
+  ctx.save();
   drawFly(W / 2, 190, Math.PI, 1, .45);
   centerText(overWhy || 'SE ACABÓ EL TURNO', 310, '58px ' + FONT_T, INK);
   centerText(String(Math.floor(score)), 400, '82px ' + FONT_T, AMBER);
@@ -900,6 +918,8 @@ function loop(now) {
   update(dt); render();
   requestAnimationFrame(loop);
 }
+if (COARSE) enterTouchMode();
+fit();
 scrollBg(0, 'planta');
 const go = () => requestAnimationFrame(loop);
 if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('40px "Archivo Black"'), document.fonts.load('700 14px "Space Mono"')]).then(go, go); else go();
